@@ -1,0 +1,208 @@
+% Joe Plattenburg
+% 10/30/15
+% Data Incubator Challenge Problem 1
+
+clear; clc; close all
+
+%% Problem Parameters
+% Number of steps to take
+num_steps = 50;
+% How far from the origin
+how_far = 3;
+% Distance to be ever outside
+ever_out = 5;
+% Distance to first be outside
+first_out = 10;
+
+%% Generate the Markov Chain Model
+% Here we will generate a state vector consisting of every possible
+% location after a certain number (n) of steps
+% The convention is starting at the bottom left of the 2-d grid (i.e. -n,
+% -n) and moving left to right across all possible x for y = -n, then
+% moving up a new y = -n + 1 and doing the same for all possible x (from -n
+% to n)
+% Thus the state vector Z is of dimension (2*n+1)^2
+dim = 2*num_steps+1;
+% Initial state (origin)
+Z_0 = zeros(dim^2,1);
+Z_0((dim^2-1)/2+1) = 1;
+% Plot original prob. distribution
+prob_xy_0 = reshape(Z_0,dim,dim);
+x_vect = -num_steps:num_steps;
+y_vect = -num_steps:num_steps;
+%figure;
+%surf(x_vect,y_vect,prob_xy_0);
+
+% Ultimately, the full transition matrix will be of the form:
+% S_full = [S_diag, S_one_off_diag, zeros(dim), zeros(dim), ...;
+%           S_one_off_diag, S_diag, S_one_off_diag, zeros(dim), ... etc
+
+% Inialize a few of the special submatrices
+S_diag = zeros(dim);
+S_one_off_diag = 0.25*eye(dim);
+
+for n=1:(dim)
+    for m=1:(dim)
+        if (n==(m-1)) || (n==(m+1))
+            S_diag(m,n) = 0.25;
+        end
+    end
+end
+
+S_full = zeros(dim^2);
+for n=1:(dim)
+    for m=1:(dim)
+        if (n==(m-1)) || (n==(m+1))
+            S_full((m-1)*dim+1:m*dim,(n-1)*dim+1:n*dim) = S_one_off_diag;
+        elseif n==m
+            S_full((m-1)*dim+1:m*dim,(n-1)*dim+1:n*dim) = S_diag;
+        end
+    end
+end
+       
+% Here is the full stochastic transition matrix
+%figure;
+%surf(S_full)
+
+% Probability distribution after n steps
+Z = Z_0;
+for k =1:num_steps
+    Z = S_full*Z;
+end
+Z_f = Z; clear Z
+%Z_f = S_full^num_steps * Z_0; apparently this computation is very
+%expensive for large matrix dimension adn large num_steps
+prob_xy_f = reshape(Z_f,dim,dim);
+figure;
+surf(x_vect,y_vect,prob_xy_f);
+
+%% Probability of ending a certain distance from the origin
+
+% Determine which states are at least a given distance from the origin
+loc=zeros(dim^2,1);
+for n = 1:dim
+    for m=1:dim
+        % Transformation between kth element of state vector and point m,n
+        % on grid
+        k = dim*(n-1) + m;
+        % Define the location in terms of complex number (convenient
+        % transfrom to a 2-d plane)
+        loc(k) = (m-1-num_steps) + j*(n-1-num_steps);
+    end
+end
+% Distance to each of these states is then the modulus of the complex location
+distance = abs(loc);
+% The x or y displacement of each state (signed)
+x_disp = real(loc);
+y_disp = imag(loc);
+% Logical vector which determines if a given state is further than a
+% certain distance
+index = (distance >= how_far);
+% Sum of all probability states further than that distance
+format long
+p_tot = sum(Z_f.*index)
+
+%% Probability of ever being at least a certain distance from the origin
+
+% Here is another logical vector indicating whether a given point is
+% outside the distance ever_out
+index2 = (distance >= ever_out);
+p_temp = zeros(num_steps,1);
+Z = Z_0;
+
+for k = 1:num_steps
+    Z = S_full*Z;
+    % After k steps, there may be some trajectories that have gone beyond
+    % ever_out. If so, record the probability of these trajectories, remove
+    % them, and keep propagating the system forward. This keeps from double
+    % counting trajectories that oscillate across the boundary
+    p_temp(k) = sum(Z.*index2);
+    Z(index2) = 0;
+end
+
+format long
+p_tot2 = sum(p_temp)
+
+%% Probability of ending condition given some intermediary condition
+
+% Here we need to propagate the model forward, and after each step, check
+% if any trajectories have crossed x=1. If so, zero out all other
+% trajectories, and propagate those forward for n steps to compute the
+% probability of ending up x<-1. Then start from the beginning (zeroing the
+% trajectories we just computed, and determine if any subsequent
+% trajectories cross x=1, and continue the process.
+
+% Indices for which states are right of 1 and left of -1
+index3 = (x_disp > 1);
+index4 = (x_disp < -1);
+
+index_to_discard = cell(num_steps,1);
+for k =1:num_steps
+    Z = Z_0;
+    for m=1:k
+        Z = S_full*Z;
+        for n = 1:length(index_to_discard{m})
+            Z(index_to_discard{m}(n)) = 0;
+        end
+    end
+    % We we have propagated the model forward k steps
+    % Check if any trajectories have crossed x = 1 (i.e. if any points in
+    % the x>1 space have nonzero probability)
+    for n = 1:dim^2
+        if (Z(n) > 0) && index3(n)
+            % Record these trajectories for the next outside loop
+            index_to_discard{k} = [index_to_discard{k} n];
+        else
+            % Set any trajectories not 
+            Z(n) = 0;
+        end
+    end
+    % Now we have a new state vector Z containing only trajectories having
+    % crossed x = 1, propagate this forward
+    
+    for m = k+1:num_steps
+        Z = S_full*Z;
+    end
+    % Sum up all the trajectories that ended up with x<-1
+    p_temp2(k)=sum(Z.*index4);
+end
+format long
+p_tot3 = sum(p_temp2)
+
+%% Average number of moves to reach a certain distance
+
+index5 = (distance >= first_out);
+
+Z = Z_0;
+k = 0;
+% Set differ large to get into while loop
+differ = 1;
+while (differ > 1e-10) || k < 100
+    k = k+1;
+    Z = S_full*Z;
+    % After k steps, there may be some trajectories that have gone beyond
+    % first_out. If so, record the probability of these trajectories and
+    % multiply thid by k (the number of steps to that point). Also zero
+    % these trajectories out. Continue propagating forward and adding more
+    % values of p*k with each step. Eventually, p should go to zero (since
+    % many trajectories have been removed) and the sum of the sequence
+    % should converge to the expected value of the number of moves
+    p_temp(k) = sum(Z.*index5);
+    prob_of_k_steps(k) = p_temp(k)*k;
+    Z(index5) = 0;
+    if k>1
+        differ = abs(prob_of_k_steps(k)-prob_of_k_steps(k-1));
+    else
+        differ = 1;
+    end
+    disp(['Iteration ' num2str(k) ', error = ' num2str(differ)])
+end
+
+p_tot4 = sum(prob_of_k_steps)
+
+for k=1:length(prob_of_k_steps)
+    tot(k) = sum(prob_of_k_steps(1:k));
+end
+figure;plot(tot)
+xlabel('Number of iterations')
+ylabel(['Average time to first reach outside ' num2str(first_out)])
