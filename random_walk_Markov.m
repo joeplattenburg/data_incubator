@@ -6,9 +6,9 @@ clear; clc; close all
 
 %% Problem Parameters
 % Number of steps to take
-num_steps = 60;
+num_steps = 10;
 % How far from the origin
-how_far = 10;
+how_far = 3;
 % Distance to be ever outside
 ever_out = 5;
 % Distance to first be outside
@@ -171,38 +171,38 @@ p_tot3 = sum(p_temp2)
 
 %% Average number of moves to reach a certain distance
 
-% index5 = (distance >= first_out);
-% 
-% Z = Z_0;
-% k = 0;
-% % Set differ large to get into while loop
-% differ = 1;
-% while (differ > 1e-10) || k < 100
-%     k = k+1;
-%     Z = S_full*Z;
-%     % After k steps, there may be some trajectories that have gone beyond
-%     % first_out. If so, record the probability of these trajectories and
-%     % multiply thid by k (the number of steps to that point). Also zero
-%     % these trajectories out. Continue propagating forward and adding more
-%     % values of p*k with each step. Eventually, p should go to zero (since
-%     % many trajectories have been removed) and the sum of the sequence
-%     % should converge to the expected value of the number of moves
-%     p_temp(k) = sum(Z.*index5);
-%     prob_of_k_steps(k) = p_temp(k)*k;
-%     Z(index5) = 0;
-%     if k>1
-%         differ = abs(prob_of_k_steps(k)-prob_of_k_steps(k-1));
-%     else
-%         differ = 1;
-%     end
-%     disp(['Iteration ' num2str(k) ', error = ' num2str(differ)])
-% end
-% 
-% p_tot4 = sum(prob_of_k_steps)
-% 
-% for k=1:length(prob_of_k_steps)
-%     tot(k) = sum(prob_of_k_steps(1:k));
-% end
-% figure;plot(tot)
-% xlabel('Number of iterations')
-% ylabel(['Average time to first reach outside ' num2str(first_out)])
+index5 = (distance >= first_out);
+
+Z = Z_0;
+k = 0;
+% Set differ large to get into while loop
+differ = 1;
+while (differ > 1e-10) || k < 500
+    k = k+1;
+    Z = S_full*Z;
+    % After k steps, there may be some trajectories that have gone beyond
+    % first_out. If so, record the probability of these trajectories and
+    % multiply thid by k (the number of steps to that point). Also zero
+    % these trajectories out. Continue propagating forward and adding more
+    % values of p*k with each step. Eventually, p should go to zero (since
+    % many trajectories have been removed) and the sum of the sequence
+    % should converge to the expected value of the number of moves
+    p_temp(k) = sum(Z.*index5);
+    prob_of_k_steps(k) = p_temp(k)*k;
+    Z(index5) = 0;
+    if k>1
+        differ = abs(prob_of_k_steps(k)-prob_of_k_steps(k-1));
+    else
+        differ = 1;
+    end
+    disp(['Iteration ' num2str(k) ', error = ' num2str(differ)])
+end
+
+p_tot4 = sum(prob_of_k_steps)
+
+for k=1:length(prob_of_k_steps)
+    tot(k) = sum(prob_of_k_steps(1:k));
+end
+figure;plot(tot)
+xlabel('Number of iterations')
+ylabel(['Average time to first reach outside ' num2str(first_out)])

@@ -5,7 +5,7 @@ There is a brute force code for sanity check and a long script that uses Markov 
 
 The python code big_data_file.py is used to analyze the NYC311 file (Problem 2), I did not finish much of this
 
-Proposal.docx details the proposed project fro the Data Incubator (Problem 3)
+Proposal.docx details the proposed project for the Data Incubator (Problem 3)
 
 The other python codes are for getting weather info from Weather Underground
 get_historical_weather.py attempts to scrape historical data but there was one line I could not get working using BeautifulSoup
